@@ -32,6 +32,7 @@ export interface AppEvent {
   description: string;
   category: EventCategory;
   source: 'commander' | 'soldier';
+  commander_note: string | null;
   ended_at: string | null;
   created_at: string;
 }

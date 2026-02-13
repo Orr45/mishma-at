@@ -19,6 +19,8 @@ import {
   ChevronDown,
   Clock,
   MessageCircle,
+  Send,
+  Reply,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -38,6 +40,8 @@ export default function EventsPage() {
   const [error, setError] = useState('');
   const [eventType, setEventType] = useState<'general' | 'soldier'>('general');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [replyId, setReplyId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
   const supabase = createClient();
 
   useEffect(() => {
@@ -137,6 +141,20 @@ export default function EventsPage() {
     if (!confirm('למחוק את האירוע?')) return;
     setEvents((prev) => prev.filter((ev) => ev.id !== eventId));
     await supabase.from('events').delete().eq('id', eventId);
+  }
+
+  function openReply(event: AppEvent) {
+    setReplyId(event.id);
+    setReplyText(event.commander_note || '');
+  }
+
+  async function saveReply(eventId: string) {
+    const note = replyText.trim() || null;
+    setEvents((prev) =>
+      prev.map((ev) => (ev.id === eventId ? { ...ev, commander_note: note } : ev))
+    );
+    setReplyId(null);
+    await supabase.from('events').update({ commander_note: note } as never).eq('id', eventId);
   }
 
   function shareEventWhatsApp(event: AppEvent & { soldier?: { full_name: string } }) {
@@ -264,6 +282,43 @@ export default function EventsPage() {
                           hour: '2-digit', minute: '2-digit',
                         })}
                       </div>
+                      {/* Commander note display */}
+                      {event.commander_note && replyId !== event.id && (
+                        <div className="bg-primary/5 border border-primary/20 rounded-xl p-3">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <Reply className="w-3.5 h-3.5 text-primary" />
+                            <span className="text-xs font-medium text-primary">התגובה שלך</span>
+                          </div>
+                          <p className="text-sm">{event.commander_note}</p>
+                        </div>
+                      )}
+
+                      {/* Reply input for soldier requests */}
+                      {event.source === 'soldier' && replyId === event.id && (
+                        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            autoFocus
+                            value={replyText}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') saveReply(event.id); if (e.key === 'Escape') setReplyId(null); }}
+                            placeholder="כתוב תגובה לחייל..."
+                            className="flex-1 rounded-xl bg-background border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                          <button
+                            onClick={() => saveReply(event.id)}
+                            className="p-2 rounded-xl bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                          >
+                            <Send className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setReplyId(null)}
+                            className="p-2 rounded-xl bg-card-hover text-muted hover:text-foreground transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+
                       <div className="flex gap-2 pt-1">
                         <button
                           onClick={(e) => { e.stopPropagation(); endEvent(event.id); }}
@@ -272,6 +327,14 @@ export default function EventsPage() {
                           <CheckCircle2 className="w-4 h-4" />
                           סיים אירוע
                         </button>
+                        {event.source === 'soldier' && replyId !== event.id && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openReply(event); }}
+                            className="flex items-center justify-center gap-1.5 text-sm bg-primary/10 text-primary hover:bg-primary/20 rounded-xl px-4 py-2.5 transition-colors"
+                          >
+                            <Reply className="w-4 h-4" />
+                          </button>
+                        )}
                         <button
                           onClick={(e) => { e.stopPropagation(); shareEventWhatsApp(event); }}
                           className="flex items-center justify-center gap-1.5 text-sm bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 rounded-xl px-4 py-2.5 transition-colors"
@@ -385,6 +448,16 @@ export default function EventsPage() {
                             </div>
                           )}
                         </div>
+                        {/* Commander note display in ended events */}
+                        {event.commander_note && (
+                          <div className="bg-primary/5 border border-primary/20 rounded-xl p-3">
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <Reply className="w-3.5 h-3.5 text-primary" />
+                              <span className="text-xs font-medium text-primary">התגובה שלך</span>
+                            </div>
+                            <p className="text-sm">{event.commander_note}</p>
+                          </div>
+                        )}
                         <div className="flex gap-2 pt-1">
                           <button
                             onClick={(e) => { e.stopPropagation(); shareEventWhatsApp(event); }}

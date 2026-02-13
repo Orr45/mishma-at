@@ -21,6 +21,7 @@ import {
   Pencil,
   Save,
   Newspaper,
+  Reply,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -463,6 +464,15 @@ export default function SoldierPortalPage() {
                       {event.description && (
                         <p className="text-sm text-muted-foreground bg-background rounded-lg p-2.5">{event.description}</p>
                       )}
+                      {event.commander_note && (
+                        <div className="mt-2 bg-primary/5 border border-primary/20 rounded-lg p-2.5">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <Reply className="w-3 h-3 text-primary" />
+                            <span className="text-[10px] font-medium text-primary">תגובת מפקד</span>
+                          </div>
+                          <p className="text-sm">{event.commander_note}</p>
+                        </div>
+                      )}
                     </motion.div>
                   );
                 })}
@@ -500,6 +510,15 @@ export default function SoldierPortalPage() {
                           טופל
                         </span>
                       </div>
+                      {event.commander_note && (
+                        <div className="mt-2 bg-primary/5 border border-primary/20 rounded-lg p-2.5">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <Reply className="w-3 h-3 text-primary" />
+                            <span className="text-[10px] font-medium text-primary">תגובת מפקד</span>
+                          </div>
+                          <p className="text-sm">{event.commander_note}</p>
+                        </div>
+                      )}
                     </motion.div>
                   );
                 })}
