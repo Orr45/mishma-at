@@ -172,15 +172,24 @@ export default function TrackingPage() {
     }
   }
 
-  async function deleteChecklist(id: string) {
+  async function deleteChecklist(clId: string) {
     if (!confirm('למחוק את המעקב?')) return;
-    setChecklists((prev) => prev.filter((c) => c.id !== id));
-    setCompletions((prev) => prev.filter((c) => c.checklist_id !== id));
-    if (selectedId === id) {
-      const remaining = checklists.filter((c) => c.id !== id);
+
+    // First delete completions, then the checklist
+    await supabase.from('checklist_completions').delete().eq('checklist_id', clId);
+    const { error: delError } = await supabase.from('checklists').delete().eq('id', clId);
+
+    if (delError) {
+      alert('שגיאה במחיקה: ' + delError.message);
+      return;
+    }
+
+    setChecklists((prev) => prev.filter((c) => c.id !== clId));
+    setCompletions((prev) => prev.filter((c) => c.checklist_id !== clId));
+    if (selectedId === clId) {
+      const remaining = checklists.filter((c) => c.id !== clId);
       setSelectedId(remaining.length > 0 ? remaining[0].id : null);
     }
-    await supabase.from('checklists').delete().eq('id', id);
   }
 
   if (loading) {
