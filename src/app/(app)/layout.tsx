@@ -1,4 +1,5 @@
 import Navbar from '@/components/Navbar';
+import ChatBot from '@/components/ChatBot';
 
 export default function AppLayout({
   children,
@@ -11,6 +12,7 @@ export default function AppLayout({
       <main className="max-w-4xl mx-auto px-4 py-6">
         {children}
       </main>
+      <ChatBot />
     </div>
   );
 }
