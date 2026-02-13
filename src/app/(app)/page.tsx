@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@/lib/supabase-client';
 import type { Soldier, News } from '@/types/database';
-import { Search, Users, Home, Building2, Plus, Filter, Trash2, MessageCircle, Newspaper, Pencil, X, Save } from 'lucide-react';
+import { Search, Users, Home, Building2, Plus, Filter, Trash2, MessageCircle, Newspaper, Pencil, X, Save, StickyNote, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import AddSoldierModal from '@/components/AddSoldierModal';
@@ -15,6 +15,10 @@ export default function DashboardPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
+
+  // Quick note state
+  const [noteEditId, setNoteEditId] = useState<string | null>(null);
+  const [noteText, setNoteText] = useState('');
 
   // News state
   const [newsList, setNewsList] = useState<News[]>([]);
@@ -127,6 +131,21 @@ export default function DashboardPage() {
 
     const url = `https://wa.me/?text=${encodeURIComponent(msg)}`;
     window.open(url, '_blank');
+  }
+
+  // Quick note
+  function openNote(soldier: Soldier) {
+    setNoteEditId(soldier.id);
+    setNoteText(soldier.notes || '');
+  }
+
+  async function saveNote(soldierId: string) {
+    const trimmed = noteText.trim() || null;
+    setSoldiers((prev) =>
+      prev.map((s) => (s.id === soldierId ? { ...s, notes: trimmed } : s))
+    );
+    setNoteEditId(null);
+    await supabase.from('soldiers').update({ notes: trimmed } as never).eq('id', soldierId);
   }
 
   // News CRUD
@@ -472,6 +491,17 @@ export default function DashboardPage() {
                     {soldier.status === 'Base' ? 'בבסיס' : 'בבית'}
                   </span>
                   <button
+                    onClick={(e) => { e.preventDefault(); openNote(soldier); }}
+                    className={`p-2 rounded-xl transition-colors ${
+                      soldier.notes
+                        ? 'text-accent-yellow hover:bg-accent-yellow/10'
+                        : 'text-muted hover:text-foreground hover:bg-card-hover'
+                    }`}
+                    aria-label={`הערה ${soldier.full_name}`}
+                  >
+                    <StickyNote className="w-4 h-4" />
+                  </button>
+                  <button
                     onClick={(e) => { e.preventDefault(); toggleStatus(soldier); }}
                     className={`toggle-switch ${soldier.status === 'Base' ? 'active' : 'inactive'}`}
                     aria-label={`שנה סטטוס ${soldier.full_name}`}
@@ -485,6 +515,43 @@ export default function DashboardPage() {
                   </button>
                 </div>
               </div>
+
+              {/* Show existing note */}
+              {soldier.notes && noteEditId !== soldier.id && (
+                <p className="text-xs text-accent-yellow/80 mt-2 bg-accent-yellow/5 rounded-lg px-2.5 py-1.5 border border-accent-yellow/10">
+                  {soldier.notes}
+                </p>
+              )}
+
+              {/* Inline note editor */}
+              {noteEditId === soldier.id && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="mt-2 flex gap-2"
+                >
+                  <input
+                    autoFocus
+                    value={noteText}
+                    onChange={(e) => setNoteText(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') saveNote(soldier.id); if (e.key === 'Escape') setNoteEditId(null); }}
+                    placeholder="הערה מהירה..."
+                    className="flex-1 rounded-xl bg-background border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  <button
+                    onClick={() => saveNote(soldier.id)}
+                    className="p-2 rounded-xl bg-accent-green/10 text-accent-green hover:bg-accent-green/20 transition-colors"
+                  >
+                    <Check className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setNoteEditId(null)}
+                    className="p-2 rounded-xl bg-card-hover text-muted hover:text-foreground transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </motion.div>
+              )}
             </motion.div>
           ))}
         </AnimatePresence>
