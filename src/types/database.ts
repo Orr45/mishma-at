@@ -28,9 +28,10 @@ export interface AppEvent {
   id: string;
   title: string | null;
   soldier_id: string | null;
-  creator_id: string;
+  creator_id: string | null;
   description: string;
   category: EventCategory;
+  source: 'commander' | 'soldier';
   ended_at: string | null;
   created_at: string;
 }

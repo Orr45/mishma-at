@@ -213,13 +213,16 @@ export default function EventsPage() {
                   <Icon className="w-5 h-5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     {event.title && (
                       <span className="font-semibold text-sm">{event.title}</span>
                     )}
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cat?.color || ''}`}>
                       {cat?.label || event.category}
                     </span>
+                    {event.source === 'soldier' && (
+                      <span className="text-[10px] bg-orange-400/20 text-orange-400 px-2 py-0.5 rounded-full font-medium">בקשת חייל</span>
+                    )}
                   </div>
                   <span className="text-xs text-muted mt-0.5 block">
                     {new Date(event.created_at).toLocaleDateString('he-IL', {
@@ -316,13 +319,16 @@ export default function EventsPage() {
                     <Icon className="w-5 h-5" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       {event.title && (
                         <span className="font-semibold text-sm">{event.title}</span>
                       )}
                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cat?.color || ''}`}>
                         {cat?.label || event.category}
                       </span>
+                      {event.source === 'soldier' && (
+                        <span className="text-[10px] bg-orange-400/20 text-orange-400 px-2 py-0.5 rounded-full font-medium">בקשת חייל</span>
+                      )}
                       <span className="text-xs text-accent-green flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3" />
                         הסתיים

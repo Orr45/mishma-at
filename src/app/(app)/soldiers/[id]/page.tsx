@@ -19,6 +19,8 @@ import {
   User,
   Truck,
   Trash2,
+  Link2,
+  Check,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -39,6 +41,7 @@ export default function SoldierProfilePage() {
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState({ weapon_serial: '', civilian_job: '', notes: '' });
   const [loading, setLoading] = useState(true);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -231,6 +234,22 @@ export default function SoldierProfilePage() {
               >
                 <Edit3 className="w-4 h-4" />
                 עריכה
+              </button>
+              <button
+                onClick={() => {
+                  const url = `${window.location.origin}/s/${soldier.id}`;
+                  navigator.clipboard.writeText(url);
+                  setLinkCopied(true);
+                  setTimeout(() => setLinkCopied(false), 2000);
+                }}
+                className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
+                  linkCopied
+                    ? 'bg-accent-green/10 text-accent-green'
+                    : 'bg-primary/10 hover:bg-primary/20 text-primary'
+                }`}
+              >
+                {linkCopied ? <Check className="w-4 h-4" /> : <Link2 className="w-4 h-4" />}
+                {linkCopied ? 'הקישור הועתק!' : 'קישור לחייל'}
               </button>
               <button
                 onClick={handleDelete}
