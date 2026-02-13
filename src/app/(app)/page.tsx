@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@/lib/supabase-client';
-import type { Soldier } from '@/types/database';
-import { Search, Users, Home, Building2, Plus, Filter, Trash2, MessageCircle } from 'lucide-react';
+import type { Soldier, News } from '@/types/database';
+import { Search, Users, Home, Building2, Plus, Filter, Trash2, MessageCircle, Newspaper, Pencil, X, Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import AddSoldierModal from '@/components/AddSoldierModal';
@@ -16,21 +16,30 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
-  // Fetch soldiers
+  // News state
+  const [newsList, setNewsList] = useState<News[]>([]);
+  const [showNewsForm, setShowNewsForm] = useState(false);
+  const [editingNews, setEditingNews] = useState<News | null>(null);
+  const [newsTitle, setNewsTitle] = useState('');
+  const [newsContent, setNewsContent] = useState('');
+  const [newsSaving, setNewsSaving] = useState(false);
+
+  // Fetch soldiers + news
   useEffect(() => {
-    async function fetchSoldiers() {
-      const { data } = await supabase
-        .from('soldiers')
-        .select('*')
-        .order('full_name');
-      if (data) setSoldiers(data as unknown as Soldier[]);
+    async function fetchData() {
+      const [soldiersRes, newsRes] = await Promise.all([
+        supabase.from('soldiers').select('*').order('full_name'),
+        supabase.from('news').select('*').order('created_at', { ascending: false }),
+      ]);
+      if (soldiersRes.data) setSoldiers(soldiersRes.data as unknown as Soldier[]);
+      if (newsRes.data) setNewsList(newsRes.data as unknown as News[]);
       setLoading(false);
     }
-    fetchSoldiers();
+    fetchData();
 
     // Real-time subscription
     const channel = supabase
-      .channel('soldiers-changes')
+      .channel('dashboard-changes')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'soldiers' },
@@ -45,6 +54,21 @@ export default function DashboardPage() {
             );
           } else if (payload.eventType === 'DELETE') {
             setSoldiers((prev) => prev.filter((s) => s.id !== payload.old.id));
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'news' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setNewsList((prev) => [payload.new as News, ...prev]);
+          } else if (payload.eventType === 'UPDATE') {
+            setNewsList((prev) =>
+              prev.map((n) => (n.id === (payload.new as News).id ? (payload.new as News) : n))
+            );
+          } else if (payload.eventType === 'DELETE') {
+            setNewsList((prev) => prev.filter((n) => n.id !== payload.old.id));
           }
         }
       )
@@ -103,6 +127,59 @@ export default function DashboardPage() {
 
     const url = `https://wa.me/?text=${encodeURIComponent(msg)}`;
     window.open(url, '_blank');
+  }
+
+  // News CRUD
+  function openNewsForm(item?: News) {
+    if (item) {
+      setEditingNews(item);
+      setNewsTitle(item.title);
+      setNewsContent(item.content);
+    } else {
+      setEditingNews(null);
+      setNewsTitle('');
+      setNewsContent('');
+    }
+    setShowNewsForm(true);
+  }
+
+  async function saveNews() {
+    if (!newsTitle.trim() || !newsContent.trim()) return;
+    setNewsSaving(true);
+    try {
+      if (editingNews) {
+        const { error } = await supabase
+          .from('news')
+          .update({ title: newsTitle.trim(), content: newsContent.trim(), updated_at: new Date().toISOString() } as never)
+          .eq('id', editingNews.id);
+        if (error) throw error;
+        setNewsList((prev) =>
+          prev.map((n) =>
+            n.id === editingNews.id ? { ...n, title: newsTitle.trim(), content: newsContent.trim(), updated_at: new Date().toISOString() } : n
+          )
+        );
+      } else {
+        const { data, error } = await supabase
+          .from('news')
+          .insert({ title: newsTitle.trim(), content: newsContent.trim(), platoon_id: 'default' } as never)
+          .select()
+          .single();
+        if (error) throw error;
+        if (data) setNewsList((prev) => [data as unknown as News, ...prev]);
+      }
+      setShowNewsForm(false);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'שגיאה בשמירה');
+    } finally {
+      setNewsSaving(false);
+    }
+  }
+
+  async function deleteNews(id: string) {
+    if (!confirm('למחוק את ההודעה?')) return;
+    setNewsList((prev) => prev.filter((n) => n.id !== id));
+    const { error } = await supabase.from('news').delete().eq('id', id);
+    if (error) alert('שגיאה במחיקה: ' + error.message);
   }
 
   // Filtered and searched soldiers
@@ -212,6 +289,129 @@ export default function DashboardPage() {
           כולם הביתה
         </button>
       </div>
+
+      {/* News Section */}
+      <div className="bg-card border border-border rounded-2xl p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Newspaper className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-bold">חדשות</h2>
+          </div>
+          <button
+            onClick={() => openNewsForm()}
+            className="flex items-center gap-1.5 bg-primary hover:bg-primary-hover text-white rounded-xl px-3 py-2 text-sm font-medium transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            הודעה חדשה
+          </button>
+        </div>
+
+        {newsList.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">אין הודעות עדיין</p>
+        ) : (
+          <div className="space-y-2">
+            {newsList.map((item) => (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-background border border-border rounded-xl p-3"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm">{item.title}</h3>
+                    <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{item.content}</p>
+                    <span className="text-[10px] text-muted mt-2 block">
+                      {new Date(item.created_at).toLocaleDateString('he-IL', {
+                        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+                      })}
+                      {item.updated_at !== item.created_at && ' (עודכן)'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => openNewsForm(item)}
+                      className="p-1.5 rounded-lg hover:bg-card-hover text-muted hover:text-foreground transition-colors"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => deleteNews(item.id)}
+                      className="p-1.5 rounded-lg hover:bg-accent-red/10 text-muted hover:text-accent-red transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* News Form Modal */}
+      <AnimatePresence>
+        {showNewsForm && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60"
+              onClick={() => setShowNewsForm(false)}
+            />
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="relative w-full sm:max-w-md bg-card border border-border rounded-t-3xl sm:rounded-2xl p-6"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold">{editingNews ? 'עריכת הודעה' : 'הודעה חדשה'}</h2>
+                <button onClick={() => setShowNewsForm(false)} className="p-2 rounded-xl hover:bg-card-hover transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1">כותרת</label>
+                  <input
+                    value={newsTitle}
+                    onChange={(e) => setNewsTitle(e.target.value)}
+                    className="w-full rounded-xl bg-background border border-border px-4 py-3 text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="כותרת ההודעה..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">תוכן</label>
+                  <textarea
+                    value={newsContent}
+                    onChange={(e) => setNewsContent(e.target.value)}
+                    rows={4}
+                    className="w-full rounded-xl bg-background border border-border px-4 py-3 text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                    placeholder="תוכן ההודעה..."
+                  />
+                </div>
+                <button
+                  onClick={saveNews}
+                  disabled={newsSaving || !newsTitle.trim() || !newsContent.trim()}
+                  className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary-hover text-white font-medium rounded-xl px-4 py-3 transition-colors disabled:opacity-50"
+                >
+                  {newsSaving ? (
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <Save className="w-5 h-5" />
+                      {editingNews ? 'עדכן' : 'פרסם'}
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Search & Filter */}
       <div className="flex gap-3">

@@ -50,3 +50,13 @@ export interface ChecklistCompletion {
   soldier_id: string;
   completed_at: string;
 }
+
+export interface News {
+  id: string;
+  title: string;
+  content: string;
+  created_by: string | null;
+  platoon_id: string;
+  created_at: string;
+  updated_at: string;
+}

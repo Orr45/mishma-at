@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
-import type { Soldier, AppEvent } from '@/types/database';
+import type { Soldier, AppEvent, News } from '@/types/database';
 import {
   Shield,
   Building2,
@@ -20,6 +20,7 @@ import {
   Clock,
   Pencil,
   Save,
+  Newspaper,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -41,6 +42,7 @@ export default function SoldierPortalPage() {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [newsList, setNewsList] = useState<News[]>([]);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -53,13 +55,14 @@ export default function SoldierPortalPage() {
 
   useEffect(() => {
     async function load() {
-      const [soldierRes, eventsRes] = await Promise.all([
+      const [soldierRes, eventsRes, newsRes] = await Promise.all([
         supabase.from('soldiers').select('*').eq('id', id).single(),
         supabase
           .from('events')
           .select('*')
           .eq('soldier_id', id)
           .order('created_at', { ascending: false }),
+        supabase.from('news').select('*').order('created_at', { ascending: false }),
       ]);
 
       if (soldierRes.data) {
@@ -74,6 +77,7 @@ export default function SoldierPortalPage() {
         });
       }
       if (eventsRes.data) setEvents(eventsRes.data as unknown as AppEvent[]);
+      if (newsRes.data) setNewsList(newsRes.data as unknown as News[]);
       setLoading(false);
     }
     load();
@@ -93,6 +97,21 @@ export default function SoldierPortalPage() {
             );
           } else if (payload.eventType === 'DELETE') {
             setEvents((prev) => prev.filter((ev) => ev.id !== payload.old.id));
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'news' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setNewsList((prev) => [payload.new as News, ...prev]);
+          } else if (payload.eventType === 'UPDATE') {
+            setNewsList((prev) =>
+              prev.map((n) => (n.id === (payload.new as News).id ? (payload.new as News) : n))
+            );
+          } else if (payload.eventType === 'DELETE') {
+            setNewsList((prev) => prev.filter((n) => n.id !== payload.old.id));
           }
         }
       )
@@ -347,6 +366,34 @@ export default function SoldierPortalPage() {
           </>
         )}
       </motion.div>
+
+      {/* News */}
+      {newsList.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Newspaper className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-semibold">חדשות</h2>
+          </div>
+          <div className="space-y-2">
+            {newsList.map((item) => (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-card border border-border rounded-2xl p-4"
+              >
+                <h3 className="font-semibold text-sm">{item.title}</h3>
+                <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{item.content}</p>
+                <span className="text-[10px] text-muted mt-2 block">
+                  {new Date(item.created_at).toLocaleDateString('he-IL', {
+                    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+                  })}
+                </span>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Success message */}
       <AnimatePresence>
