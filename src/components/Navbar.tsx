@@ -13,6 +13,8 @@ import {
   Menu,
   X,
   Shield,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -26,9 +28,26 @@ const navItems = [
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [soldierRequestCount, setSoldierRequestCount] = useState(0);
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const router = useRouter();
   const pathname = usePathname();
   const supabase = createClient();
+
+  // Load theme from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('theme') as 'dark' | 'light' | null;
+    if (saved) {
+      setTheme(saved);
+      document.documentElement.setAttribute('data-theme', saved);
+    }
+  }, []);
+
+  function toggleTheme() {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+  }
 
   // Count unread soldier requests (source='soldier', not ended)
   useEffect(() => {
@@ -68,6 +87,16 @@ export default function Navbar() {
           <div className="flex items-center gap-2">
             <Shield className="w-6 h-6 text-primary" />
             <span className="text-lg font-bold">משמעת</span>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-xl hover:bg-card-hover transition-colors text-muted-foreground hover:text-foreground"
+              aria-label="החלף ערכת נושא"
+            >
+              {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
           </div>
 
           {/* Desktop Nav */}

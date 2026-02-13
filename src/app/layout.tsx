@@ -17,6 +17,13 @@ export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
   title: "משמעת - מערכת לניהול חיילים",
   description: "מערכת ניהול חיילים לפיקוד ושליטה",
+  manifest: "/manifest.json",
+  themeColor: "#4a7c59",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "משמעת",
+  },
 };
 
 export default function RootLayout({
@@ -26,10 +33,25 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="he" dir="rtl">
+      <head>
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <link rel="apple-touch-icon" href="/icon-192.png" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground min-h-screen`}
       >
         {children}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js');
+                });
+              }
+            `,
+          }}
+        />
       </body>
     </html>
   );
