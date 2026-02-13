@@ -18,6 +18,8 @@ import {
   Truck,
   CheckCircle2,
   Clock,
+  Pencil,
+  Save,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -39,6 +41,15 @@ export default function SoldierPortalPage() {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editForm, setEditForm] = useState({
+    full_name: '',
+    role_in_unit: '',
+    weapon_serial: '',
+    civilian_job: '',
+    notes: '',
+  });
 
   useEffect(() => {
     async function load() {
@@ -51,7 +62,17 @@ export default function SoldierPortalPage() {
           .order('created_at', { ascending: false }),
       ]);
 
-      if (soldierRes.data) setSoldier(soldierRes.data as unknown as Soldier);
+      if (soldierRes.data) {
+        const s = soldierRes.data as unknown as Soldier;
+        setSoldier(s);
+        setEditForm({
+          full_name: s.full_name || '',
+          role_in_unit: s.role_in_unit || '',
+          weapon_serial: s.weapon_serial || '',
+          civilian_job: s.civilian_job || '',
+          notes: s.notes || '',
+        });
+      }
       if (eventsRes.data) setEvents(eventsRes.data as unknown as AppEvent[]);
       setLoading(false);
     }
@@ -79,6 +100,61 @@ export default function SoldierPortalPage() {
 
     return () => { supabase.removeChannel(channel); };
   }, [id, supabase]);
+
+  function startEditing() {
+    if (!soldier) return;
+    setEditForm({
+      full_name: soldier.full_name || '',
+      role_in_unit: soldier.role_in_unit || '',
+      weapon_serial: soldier.weapon_serial || '',
+      civilian_job: soldier.civilian_job || '',
+      notes: soldier.notes || '',
+    });
+    setEditing(true);
+  }
+
+  async function saveProfile() {
+    if (!editForm.full_name.trim()) {
+      setError('שם מלא הוא שדה חובה');
+      return;
+    }
+    setSaving(true);
+    setError('');
+    try {
+      const { error: updateError } = await supabase
+        .from('soldiers')
+        .update({
+          full_name: editForm.full_name.trim(),
+          role_in_unit: editForm.role_in_unit.trim() || null,
+          weapon_serial: editForm.weapon_serial.trim() || null,
+          civilian_job: editForm.civilian_job.trim() || null,
+          notes: editForm.notes.trim() || null,
+        })
+        .eq('id', id);
+
+      if (updateError) throw updateError;
+
+      setSoldier((prev) =>
+        prev
+          ? {
+              ...prev,
+              full_name: editForm.full_name.trim(),
+              role_in_unit: editForm.role_in_unit.trim() || null,
+              weapon_serial: editForm.weapon_serial.trim() || null,
+              civilian_job: editForm.civilian_job.trim() || null,
+              notes: editForm.notes.trim() || null,
+            }
+          : prev
+      );
+      setEditing(false);
+      setSuccess('הפרטים עודכנו בהצלחה!');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'שגיאה בעדכון הפרטים');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -154,27 +230,122 @@ export default function SoldierPortalPage() {
         animate={{ opacity: 1, y: 0 }}
         className="bg-card border border-border rounded-2xl p-5"
       >
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold">{soldier.full_name}</h1>
-            {soldier.role_in_unit && (
-              <p className="text-sm text-muted-foreground mt-0.5">{soldier.role_in_unit}</p>
-            )}
+        {editing ? (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-lg font-bold">עריכת פרטים</h2>
+              <button
+                onClick={() => setEditing(false)}
+                className="p-1.5 rounded-lg hover:bg-card-hover transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">שם מלא *</label>
+              <input
+                value={editForm.full_name}
+                onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
+                className="w-full rounded-xl bg-background border border-border px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">תפקיד</label>
+              <input
+                value={editForm.role_in_unit}
+                onChange={(e) => setEditForm({ ...editForm, role_in_unit: e.target.value })}
+                className="w-full rounded-xl bg-background border border-border px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="לדוגמה: קשר, חובש..."
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">מספר נשק</label>
+              <input
+                value={editForm.weapon_serial}
+                onChange={(e) => setEditForm({ ...editForm, weapon_serial: e.target.value })}
+                className="w-full rounded-xl bg-background border border-border px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">עבודה אזרחית</label>
+              <input
+                value={editForm.civilian_job}
+                onChange={(e) => setEditForm({ ...editForm, civilian_job: e.target.value })}
+                className="w-full rounded-xl bg-background border border-border px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">הערות</label>
+              <textarea
+                value={editForm.notes}
+                onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                rows={2}
+                className="w-full rounded-xl bg-background border border-border px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+              />
+            </div>
+            <button
+              onClick={saveProfile}
+              disabled={saving}
+              className="w-full flex items-center justify-center gap-2 bg-accent-green hover:bg-accent-green/80 text-white font-medium rounded-xl px-4 py-2.5 transition-colors disabled:opacity-50"
+            >
+              {saving ? (
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  שמור
+                </>
+              )}
+            </button>
           </div>
-          <span
-            className={`flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-full ${
-              soldier.status === 'Base'
-                ? 'bg-accent-green/20 text-accent-green'
-                : 'bg-accent-yellow/20 text-accent-yellow'
-            }`}
-          >
-            {soldier.status === 'Base' ? (
-              <><Building2 className="w-4 h-4" /> בבסיס</>
-            ) : (
-              <><Home className="w-4 h-4" /> בבית</>
+        ) : (
+          <>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-xl font-bold">{soldier.full_name}</h1>
+                {soldier.role_in_unit && (
+                  <p className="text-sm text-muted-foreground mt-0.5">{soldier.role_in_unit}</p>
+                )}
+              </div>
+              <span
+                className={`flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-full ${
+                  soldier.status === 'Base'
+                    ? 'bg-accent-green/20 text-accent-green'
+                    : 'bg-accent-yellow/20 text-accent-yellow'
+                }`}
+              >
+                {soldier.status === 'Base' ? (
+                  <><Building2 className="w-4 h-4" /> בבסיס</>
+                ) : (
+                  <><Home className="w-4 h-4" /> בבית</>
+                )}
+              </span>
+            </div>
+
+            {/* Additional info */}
+            {(soldier.weapon_serial || soldier.civilian_job || soldier.notes) && (
+              <div className="mt-3 pt-3 border-t border-border space-y-1.5">
+                {soldier.weapon_serial && (
+                  <p className="text-sm text-muted-foreground">נשק: <span className="text-foreground">{soldier.weapon_serial}</span></p>
+                )}
+                {soldier.civilian_job && (
+                  <p className="text-sm text-muted-foreground">עבודה: <span className="text-foreground">{soldier.civilian_job}</span></p>
+                )}
+                {soldier.notes && (
+                  <p className="text-sm text-muted-foreground">הערות: <span className="text-foreground">{soldier.notes}</span></p>
+                )}
+              </div>
             )}
-          </span>
-        </div>
+
+            <button
+              onClick={startEditing}
+              className="mt-3 w-full flex items-center justify-center gap-2 bg-card-hover hover:bg-border text-muted-foreground hover:text-foreground rounded-xl px-4 py-2.5 text-sm font-medium transition-colors"
+            >
+              <Pencil className="w-4 h-4" />
+              עריכת פרטים אישיים
+            </button>
+          </>
+        )}
       </motion.div>
 
       {/* Success message */}
