@@ -115,9 +115,10 @@ export default function DashboardPage() {
   // WhatsApp report
   function sendWhatsAppReport() {
     const hebrewDays = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
-    const now = new Date();
-    const dayName = hebrewDays[now.getDay()];
-    const dateStr = now.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit' });
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const dayName = hebrewDays[tomorrow.getDay()];
+    const dateStr = tomorrow.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit' });
 
     const baseSoldiers = soldiers.filter((s) => s.status === 'Base');
     const homeSoldiers = soldiers.filter((s) => s.status === 'Home');
