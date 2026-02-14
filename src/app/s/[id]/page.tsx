@@ -141,18 +141,21 @@ export default function SoldierPortalPage() {
     setSaving(true);
     setError('');
     try {
-      const { error: updateError } = await supabase
-        .from('soldiers')
-        .update({
+      const res = await fetch('/api/soldiers', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id,
           full_name: editForm.full_name.trim(),
           role_in_unit: editForm.role_in_unit.trim() || null,
           weapon_serial: editForm.weapon_serial.trim() || null,
           civilian_job: editForm.civilian_job.trim() || null,
           notes: editForm.notes.trim() || null,
-        } as never)
-        .eq('id', id);
+        }),
+      });
 
-      if (updateError) throw updateError;
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'שגיאה בעדכון');
 
       setSoldier((prev) =>
         prev
