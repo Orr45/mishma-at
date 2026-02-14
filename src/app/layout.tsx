@@ -41,6 +41,9 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground min-h-screen`}
       >
         {children}
+        <footer className="fixed bottom-1 left-2 text-[10px] text-muted-foreground/40 pointer-events-none select-none z-0">
+          כל הזכויות של המערכת שמורות לאור שמר | פותח על ידי OrciAi
+        </footer>
         <script
           dangerouslySetInnerHTML={{
             __html: `
