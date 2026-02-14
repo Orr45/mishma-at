@@ -149,7 +149,7 @@ export default function SoldierPortalPage() {
           weapon_serial: editForm.weapon_serial.trim() || null,
           civilian_job: editForm.civilian_job.trim() || null,
           notes: editForm.notes.trim() || null,
-        })
+        } as never)
         .eq('id', id);
 
       if (updateError) throw updateError;
@@ -252,6 +252,12 @@ export default function SoldierPortalPage() {
       >
         {editing ? (
           <div className="space-y-3">
+            {error && (
+              <div className="flex items-center gap-2 bg-accent-red/10 border border-accent-red/30 text-accent-red rounded-xl p-3">
+                <AlertCircle className="w-5 h-5 shrink-0" />
+                <span className="text-sm">{error}</span>
+              </div>
+            )}
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-lg font-bold">עריכת פרטים</h2>
               <button
