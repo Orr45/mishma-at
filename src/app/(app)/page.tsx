@@ -223,7 +223,7 @@ export default function DashboardPage() {
     return soldiers.filter((s) => {
       const matchesSearch = s.full_name.includes(search) ||
         (s.role_in_unit && s.role_in_unit.includes(search));
-      const matchesStatus = statusFilter === 'all' || s.status === statusFilter;
+      const matchesStatus = statusFilter === 'all' ? s.status !== 'Inactive' : s.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
   }, [soldiers, search, statusFilter]);
