@@ -340,13 +340,17 @@ export default function SoldierPortalPage() {
                 className={`flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-full ${
                   soldier.status === 'Base'
                     ? 'bg-accent-green/20 text-accent-green'
-                    : 'bg-accent-yellow/20 text-accent-yellow'
+                    : soldier.status === 'Home'
+                    ? 'bg-accent-yellow/20 text-accent-yellow'
+                    : 'bg-accent-red/20 text-accent-red'
                 }`}
               >
                 {soldier.status === 'Base' ? (
                   <><Building2 className="w-4 h-4" /> בבסיס</>
-                ) : (
+                ) : soldier.status === 'Home' ? (
                   <><Home className="w-4 h-4" /> בבית</>
+                ) : (
+                  <>לא בצו</>
                 )}
               </span>
             </div>
