@@ -1,5 +1,5 @@
 export type UserRole = 'PC' | 'SGT' | 'SL';
-export type SoldierStatus = 'Base' | 'Home';
+export type SoldierStatus = 'Base' | 'Home' | 'Inactive';
 export type EventCategory = 'HR/Logistics' | 'Medical' | 'Leaves' | 'Personal';
 
 export interface Profile {

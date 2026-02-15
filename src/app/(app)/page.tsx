@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@/lib/supabase-client';
-import type { Soldier, News } from '@/types/database';
-import { Search, Users, Home, Building2, Plus, Filter, Trash2, MessageCircle, Newspaper, Pencil, X, Save, StickyNote, Check } from 'lucide-react';
+import type { Soldier, SoldierStatus, News } from '@/types/database';
+import { Search, Users, Home, Building2, Plus, Filter, Trash2, MessageCircle, Newspaper, Pencil, X, Save, StickyNote, Check, UserX, UserCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import AddSoldierModal from '@/components/AddSoldierModal';
@@ -11,7 +11,7 @@ import AddSoldierModal from '@/components/AddSoldierModal';
 export default function DashboardPage() {
   const [soldiers, setSoldiers] = useState<Soldier[]>([]);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'Base' | 'Home'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'Base' | 'Home' | 'Inactive'>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
@@ -83,12 +83,23 @@ export default function DashboardPage() {
     };
   }, [supabase]);
 
-  // Toggle status
+  // Toggle status (Base <-> Home)
   async function toggleStatus(soldier: Soldier) {
     const newStatus = soldier.status === 'Base' ? 'Home' : 'Base';
-    // Optimistic update
     setSoldiers((prev) =>
       prev.map((s) => (s.id === soldier.id ? { ...s, status: newStatus } : s))
+    );
+    await supabase
+      .from('soldiers')
+      .update({ status: newStatus } as never)
+      .eq('id', soldier.id);
+  }
+
+  // Toggle inactive (mark as Inactive / reactivate to Base)
+  async function toggleInactive(soldier: Soldier) {
+    const newStatus = soldier.status === 'Inactive' ? 'Base' : 'Inactive';
+    setSoldiers((prev) =>
+      prev.map((s) => (s.id === soldier.id ? { ...s, status: newStatus as SoldierStatus } : s))
     );
     await supabase
       .from('soldiers')
@@ -103,10 +114,10 @@ export default function DashboardPage() {
     await supabase.from('soldiers').delete().eq('id', soldier.id);
   }
 
-  // Move all soldiers
+  // Move all active soldiers (skip inactive)
   async function moveAll(status: 'Base' | 'Home') {
-    setSoldiers((prev) => prev.map((s) => ({ ...s, status })));
-    const ids = soldiers.map((s) => s.id);
+    setSoldiers((prev) => prev.map((s) => s.status === 'Inactive' ? s : { ...s, status }));
+    const ids = soldiers.filter((s) => s.status !== 'Inactive').map((s) => s.id);
     for (const id of ids) {
       await supabase.from('soldiers').update({ status } as never).eq('id', id);
     }
@@ -122,6 +133,7 @@ export default function DashboardPage() {
 
     const baseSoldiers = soldiers.filter((s) => s.status === 'Base');
     const homeSoldiers = soldiers.filter((s) => s.status === 'Home');
+    const inactiveSoldiers = soldiers.filter((s) => s.status === 'Inactive');
 
     let msg = `יום ${dayName} (${dateStr})\n`;
     msg += `מחלקה 1\n\n`;
@@ -129,6 +141,10 @@ export default function DashboardPage() {
     baseSoldiers.forEach((s) => { msg += `• ${s.full_name}\n`; });
     msg += `\nבבית (${homeSoldiers.length}):\n`;
     homeSoldiers.forEach((s) => { msg += `• ${s.full_name}\n`; });
+    if (inactiveSoldiers.length > 0) {
+      msg += `\nלא בצו (${inactiveSoldiers.length}):\n`;
+      inactiveSoldiers.forEach((s) => { msg += `• ${s.full_name}\n`; });
+    }
 
     const url = `https://wa.me/?text=${encodeURIComponent(msg)}`;
     window.open(url, '_blank');
@@ -212,9 +228,11 @@ export default function DashboardPage() {
     });
   }, [soldiers, search, statusFilter]);
 
-  const totalCount = soldiers.length;
+  const activeSoldiers = soldiers.filter((s) => s.status !== 'Inactive');
+  const totalCount = activeSoldiers.length;
   const baseCount = soldiers.filter((s) => s.status === 'Base').length;
   const homeCount = soldiers.filter((s) => s.status === 'Home').length;
+  const inactiveCount = soldiers.filter((s) => s.status === 'Inactive').length;
 
   if (loading) {
     return (
@@ -248,7 +266,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Status Cards */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-4 gap-3">
         <motion.div
           whileTap={{ scale: 0.97 }}
           onClick={() => setStatusFilter('all')}
@@ -260,7 +278,7 @@ export default function DashboardPage() {
         >
           <Users className="w-6 h-6 text-primary mb-2" />
           <div className="text-3xl font-bold">{totalCount}</div>
-          <div className="text-sm text-muted-foreground">סה&quot;כ</div>
+          <div className="text-sm text-muted-foreground">בצו</div>
         </motion.div>
 
         <motion.div
@@ -289,6 +307,20 @@ export default function DashboardPage() {
           <Home className="w-6 h-6 text-accent-yellow mb-2" />
           <div className="text-3xl font-bold text-accent-yellow">{homeCount}</div>
           <div className="text-sm text-muted-foreground">בבית</div>
+        </motion.div>
+
+        <motion.div
+          whileTap={{ scale: 0.97 }}
+          onClick={() => setStatusFilter('Inactive')}
+          className={`cursor-pointer rounded-2xl p-4 border transition-colors ${
+            statusFilter === 'Inactive'
+              ? 'bg-accent-red/20 border-accent-red'
+              : 'bg-card border-border hover:bg-card-hover'
+          }`}
+        >
+          <UserX className="w-6 h-6 text-accent-red mb-2" />
+          <div className="text-3xl font-bold text-accent-red">{inactiveCount}</div>
+          <div className="text-sm text-muted-foreground">לא בצו</div>
         </motion.div>
       </div>
 
@@ -446,7 +478,7 @@ export default function DashboardPage() {
           />
         </div>
         <button
-          onClick={() => setStatusFilter(statusFilter === 'all' ? 'Base' : statusFilter === 'Base' ? 'Home' : 'all')}
+          onClick={() => setStatusFilter(statusFilter === 'all' ? 'Base' : statusFilter === 'Base' ? 'Home' : statusFilter === 'Home' ? 'Inactive' : 'all')}
           className="flex items-center gap-2 rounded-xl bg-card border border-border px-4 py-3 hover:bg-card-hover transition-colors"
         >
           <Filter className="w-5 h-5" />
@@ -486,10 +518,12 @@ export default function DashboardPage() {
                     className={`text-xs font-medium px-2 py-1 rounded-full ${
                       soldier.status === 'Base'
                         ? 'bg-accent-green/20 text-accent-green'
-                        : 'bg-accent-yellow/20 text-accent-yellow'
+                        : soldier.status === 'Home'
+                        ? 'bg-accent-yellow/20 text-accent-yellow'
+                        : 'bg-accent-red/20 text-accent-red'
                     }`}
                   >
-                    {soldier.status === 'Base' ? 'בבסיס' : 'בבית'}
+                    {soldier.status === 'Base' ? 'בבסיס' : soldier.status === 'Home' ? 'בבית' : 'לא בצו'}
                   </span>
                   <button
                     onClick={(e) => { e.preventDefault(); openNote(soldier); }}
@@ -502,11 +536,30 @@ export default function DashboardPage() {
                   >
                     <StickyNote className="w-4 h-4" />
                   </button>
-                  <button
-                    onClick={(e) => { e.preventDefault(); toggleStatus(soldier); }}
-                    className={`toggle-switch ${soldier.status === 'Base' ? 'active' : 'inactive'}`}
-                    aria-label={`שנה סטטוס ${soldier.full_name}`}
-                  />
+                  {soldier.status === 'Inactive' ? (
+                    <button
+                      onClick={(e) => { e.preventDefault(); toggleInactive(soldier); }}
+                      className="p-2 rounded-xl text-accent-green hover:bg-accent-green/10 transition-colors"
+                      aria-label={`הפעל צו ${soldier.full_name}`}
+                    >
+                      <UserCheck className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={(e) => { e.preventDefault(); toggleStatus(soldier); }}
+                        className={`toggle-switch ${soldier.status === 'Base' ? 'active' : 'inactive'}`}
+                        aria-label={`שנה סטטוס ${soldier.full_name}`}
+                      />
+                      <button
+                        onClick={(e) => { e.preventDefault(); toggleInactive(soldier); }}
+                        className="p-2 rounded-xl text-muted hover:text-accent-red hover:bg-accent-red/10 transition-colors"
+                        aria-label={`הוצא מצו ${soldier.full_name}`}
+                      >
+                        <UserX className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
                   <button
                     onClick={(e) => { e.preventDefault(); deleteSoldier(soldier); }}
                     className="p-2 rounded-xl text-muted hover:text-accent-red hover:bg-accent-red/10 transition-colors"
